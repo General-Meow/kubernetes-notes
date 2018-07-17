@@ -1,0 +1,19 @@
+# To create a service to forward requests to multiple pods: kubectl create -f <FILE_NAME.yaml>
+# The service here will load balance requests to all targeted pods
+
+# To find the service: kubectl get svc
+# debugging a service can be done if you use minikube: minikube service sa-frontend-lb
+
+apiVersion: v1
+kind: Service              # A service.
+
+metadata:
+  name: sa-frontend-lb
+spec:
+  type: LoadBalancer       # Specification type, we choose LoadBalancer because we want to balance the load between the pods.
+  ports:
+  - port: 80               # Specifies the port in which the service gets requests
+    protocol: TCP          # Defines the communication
+    targetPort: 80         # The port at which incomming requests are forwarded
+  selector:                # Object that contains properties for selecting pods
+    app: sa-frontend       # sa-frontend Defines which pods to target, only pods that are labeled with “app: sa-frontend”

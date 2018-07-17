@@ -1,0 +1,39 @@
+# To run this deployment use the command: kubectl apply -f <FILE_NAME.yaml>
+
+# To verify its working, use the pods command: kubectl get pods
+
+# To update a deployment, once again use the apply command: kubectl apply -f deploy-frontend-green-pods.yaml --record
+
+# To view the update use: kubectl rollout status deployment <DEPLOYMENT_NAME>
+apiVersion: extensions/v1beta1
+kind: Deployment    # A deployment.
+metadata:
+  name: sa-frontend
+spec:
+  replicas: 2       # is a property of the deployments Spec object that defines how many pods we want to run. So only 2.
+  minReadySeconds: 15
+  strategy:
+    type: RollingUpdate  # specifies the strategy used in this deployment when moving from the current version to the next.
+                         # The strategy RollingUpdate ensures Zero Downtime deployments.
+    rollingUpdate:
+      maxUnavailable: 1  # is a property of the RollingUpdate object that specifies the maximum unavailable pods allowed
+                         # (compared to the desired state) when doing a rolling update. For our deployment which has 2
+                         # replicas this means that after terminating one Pod, we would still have one pod running,
+                         # this way keeping our application accessible.
+
+      maxSurge: 1        # MaxSurge is another property of the RollingUpdate object that defines the maximum amount of pods
+                         # added to a deployment (compared to the desired state). For our deployment, this means that when
+                         # moving to a new version we can add one pod, which adds up to 3 pods at the same time.
+
+  template:              # specifies the pod template that the Deployment will use to create new pods.
+                         # Most likely the resemblance with Pods struck you immediately.
+    metadata:
+      labels:
+        app: sa-frontend   # app: sa-frontend the label to use for the pods created by this template.
+    spec:
+      containers:
+        - image: rinormaloku/sentiment-analysis-frontend
+          imagePullPolicy: Always   # when set to Always, it will pull the container images on each redeployment.
+          name: sa-frontend
+          ports:
+            - containerPort: 80

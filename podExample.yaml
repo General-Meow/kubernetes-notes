@@ -1,0 +1,22 @@
+# To run this: kubectl create -f <FILE_NAME.YAML>
+# The above creates a pod on the cluster
+# find more info on the deployment by using: kubectl get pods --watch
+# because pods can only be access within the cluseter you need to create a service or proxy to access it
+# to proxy do: kubectl port-forward sa-frontend-pod 88:80
+# then go to: 127.0.0.1:88
+
+# You can modify an existing Pod deployement by making the changes to the file then use the apply command:
+# kubectl apply -f sa-frontend-pod.yaml
+# --show-labels can be used on kubectl get pods: kubectl get pods --show-labels
+apiVersion: v1
+kind: Pod    # Kind: specifies the kind of the Kubernetes Resource that we want to create. In our case, a Pod.
+metadata:
+  name: sa-frontend # Name: defines the name for the resource. We named it sa-frontend
+spec:     # Spec is the object that defines the desired state for the resource.
+          # The most important property of a Pods Spec is the Array of containers
+  containers:
+    - image: rinormaloku/sentiment-analysis-frontend # Image is the container image we want to start in this pod
+      name: sa-frontend                              # Name is the unique name for a container in a pod
+      ports:
+        - containerPort: 80 # Container Port:is the port at which the container is listening.
+                            # This is just an indicator for the reader (dropping the port doesn’t restrict access).
