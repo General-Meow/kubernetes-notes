@@ -35,5 +35,8 @@ spec:
         - image: rinormaloku/sentiment-analysis-frontend
           imagePullPolicy: Always   # when set to Always, it will pull the container images on each redeployment.
           name: sa-frontend
+          env:
+          - name: AN_ENV_VARIABLE
+            value: "https://THE_SERVICE_NAME" # set an env var do it will be sent to the docker container. here it uses the k8s dns to look up the ip for the service
           ports:
             - containerPort: 80
