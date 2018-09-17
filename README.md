@@ -125,8 +125,6 @@ REVISION  CHANGE-CAUSE
 - Services are created using the kubectl expose command
 - Service ports can only run on ports between 30000 - 32767
 
-
-
 $ kubectl get svc
 NAME          TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)        AGE
 kubernetes    ClusterIP   10.96.0.1      <none>        443/TCP        1d
@@ -137,7 +135,7 @@ services forward traffic from one port to another. in the case above traffic tha
 ### Volumes
 - volumes are the ways in which k8s saves state for pods/container - as they are mostly ephemeral
 - there are many types of volumes, each will have a different effect on its properties
-- emptyDir: essentailly a volume for one pod. when the pod dies, the volume gets deleted
+- emptyDir: essentially a volume for one pod. when the pod dies, the volume gets deleted
   hostPath: mount a directory on the host within the pod. is persisted even when the pod dies
   gcePersistentDisk: mounts a google cloud engine disk to a pod
   awsElasticBlockStore: aws version of the above
@@ -147,14 +145,105 @@ services forward traffic from one port to another. in the case above traffic tha
   persistentVolumeClaim
 - because volumes can be complex and because there are many types, k8s has the PersistentVolume(PV) subsystem.
 - to manage it, we use the PersistentVolume API and the persistentVolumeClaim api to consume it
-- a claim is essentially a request for some storage, once received the claim is attched to the PV
+- a claim is essentially a request for some storage, once received, the claim is attached to the PV
 - the PV then can be used with a pod
+- To enable PV on AWS, you first need to provision an EBS (Elastic block store)
+  - `aws ec2 create-volume --size 10 --region us-east-1 --availability-zone us-east-1a --volume-type gp2`
+  - this will return json with meta data. The VolumeID field is what your interested in
+```POD example
+apiVersion: ..
+type: pod
+...
+spec:
+  containers:
+  - name: ...
+    volumenMounts:
+    - mountPath: /myLocalDirMountPath
+      name: myVolume
+  volumes:
+    - name: myVolume
+      awsElasticBlockStore
+        volumeId: <THE VOLUME ID FROM THE PROVISIONING>
+```
+- The provisioning of the EBS can be done automatically with k8 plugins
+- The AWS plugin allows you to create the volume and make it available by using a new kind called 'StorageClass'
+- Example of an auto provisioned store
+```
+apiVersion:
+kind: StorageClass
+metadata:
+  name: standard
+provisioner: kubernetes.io/aws-ebs
+parameters:
+  type: gp2
+  zone: us-east-1
+```
+- You can then use the created objects to create Claims
+- Example of a claim on the StorageClass
+```
+apiVersion: v1
+kind: persistentVolumeClaim
+metedata:
+  name: myClaim
+  annotations:
+    volume.beta.kubernetes.io/storage-class: "standard"     #this is the metadata name from the StorageClass above
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storageL 8Gi
+```
+- Then a pod using the claim
+```
+spec:
+  containers:
+  - name: ...
+    volumenMounts:
+    - mountPath: /myLocalDirMountPath
+      name: myVolume
+  volumes:
+    - name: myVolume
+      claimName: myClaim
+```
 
-### ConfigMaps
-- these are configuration key value pairs that can be used by pods
-- kubectl create configmap ...
-- the configs can be created using literals for files
-- to use them in deployment files, you use the valueFrom and configMapKeyRef
+### ConfigMaps & secrets
+- these are configuration key value pairs that can be used by pods, best used for properties that are not confidential
+- config maps can be used in env vars, container command line args and volumes
+- the configs can be created using literals or full files like app config files eg apache.conf
+- to use them in deployment files, you use them as volumes or text from valueFrom and configMapKeyRef
+- To create a config file to be used as a config map, just create a file with key value pairs. e.g.
+  - name=paul
+    dbName=tcs
+    app.name=my service discovery app
+- `kubectl create configmap <NAME OF CONFIG MAP> --from-file=<FILENAME.properties>`
+- usage in a POD spec using volume mount
+```
+spec:
+  containers:
+  - name: myPod
+    ...
+    volumeMounts:
+    - name: config-volume
+      mountPath: /etc/config
+    volumes:
+    - name: config-volume
+      configMap:
+        name: <NAME OF CONFIG MAP>
+```
+- usage as text in a pod
+```
+spec:
+  containers:
+  - name: myPod
+    ...
+    env:
+    - name: DRIVER    # name of the env var
+      valueFrom:
+        configMapKeyRef:
+        name: <NAME OF CONFIG MAP>
+        key: <NAME OF KEY>
+```
 - secrets are used to store configs that are sensitive.
 - kubectl create secret generic my-secrete --from-literal=password=mypassword <- creates a secrete called my-secrete with the key password and value mypassword
 - to use a secret in a pod, you simply have to mount it as a volume
@@ -178,3 +267,102 @@ services forward traffic from one port to another. in the case above traffic tha
 - use the `readinessProbes` property on the container spec to define if the container is ready to serve requests
   - if this fails, k8 will remove the pod's ip from the service object so it cannot receive requests
 - both can be used in conjunction
+
+### Web ui / Dashboard
+- can be accessed via http://<k8 MASTER NODE IP>/ui
+- its installed with `kubectl create -f http://rawgit.com/kubernetes/dashboard/master/src/deploy/kubernetes-dashboard.yaml`
+- kubectl config view - for the password
+- for minikube you can use `minikube dashboard`
+
+
+### Service discovery / DNS
+- DNS comes out the box since k8 1.3
+- Addons can be viewed in /etc/kubernetes/addons on the master node
+- must be used with Service objects
+- containers within a pod do not need to use services/dns as they can comms with each other using localhost
+- It works by adding a line to the containers /etc/resolv.conf file to point to the DNS pod in the kube-system namespace
+  - this means that all comes will be routed via the k8 DNS pod
+- All service Object names will be reconised by the DNS Pod so you can refer to each service in each deployments env variable
+
+### Ingress
+- Used to allow inbound http requests in
+- alternative to the cloud providers load balancer/nodePort features
+- used to easily expose pods and services
+- There are ingress controllers which are like loadbalancers within k8
+- Default ingress controllers are available but you can also write your own
+  - behind the scenes, the default ingress controller uses nginx
+- Using Ingress you define how requests are routed
+- To get it working, you need to define an ingress object with the routing rules as
+well as the actual ingress pod to do the work
+- Example of an ingress yaml object containing the rules
+
+```YAML
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: helloworld-rules
+spec:
+  rules:
+  - host: helloworld-v1.example.com       #the request is looking for this host
+    http:
+      paths:
+      - path: /                           # with the path
+        backend:
+          serviceName: helloworld-v1
+          servicePort: 80
+  - host: helloword-v2.example.com
+    http:
+      paths:
+      - path: /                           # with the path
+        backend:
+          serviceName: helloworld-v2
+          servicePort: 80
+```
+
+- Example of an ingress deployment
+
+```yaml
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: nginx-ingress-controller
+  labels:
+    k8s-app: nginx-ingress-lb
+spec:
+  replicas: 1
+  selector:
+    k8s-apps: nginx-ingress-lb
+  template:
+    metadata:
+      labels:
+        k8-app: nginx-ingress-lb
+        name: nginx-ingress-lb
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+      - image: gcr.io/google_containers/nginx-ingress-controller:0.8.3 # there are other implementations too, look them up at the docker hub
+        name: nginx-ingress-lb
+        imagePullPolicy: Always
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 10254
+            scheme: HTTP
+        env:
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: dsdfdsf.dsfd
+        ports:
+        - containerPort: 80
+          hostPost: 80
+        - containerPort: 443
+          hostPort: 443
+```
+
+
+### Pod Presets
+- These are effectively settings/env vars that you want to share with pods.
+- Think of them as common config
+- To use them, you need to ensure that its enabled as its currently in alpha (check documentation on it)
+-
