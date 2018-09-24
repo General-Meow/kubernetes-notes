@@ -252,9 +252,91 @@ spec:
 - key value pairs that can be applied to objects and nodes
 - you can apply multiple and can be duplicated
 - used with expressions to get services to apply to specific pods
+- you can view a nodes label by using describe: `kubectl describe node <NODE ID>`
 - also used for pods to run on specific nodes
 - use: `kubectl label nodes <NODE_ID> KEY=VALUE`
 - use the nodeSelector on the pod/deployment yaml definition
+- there are some OOTB labels applied, here are the keys:
+  - kubernetes.io/hostname
+  - failure-domain.beta.kubernetes.io/zone
+  - failure-domain.beta.kubernetes.io/region
+  - beta.kubernetes.io/instance-type
+  - beta.kubernetes.io/os
+  - beta.kubernetes.io/arch
+
+### node affinity / anti affinity / interpod affinity / interpod anti affinity / Tolerations
+- more powerful than nodeSelector
+- rules are not hard requirements, meaning that the pod/deployment can still be deployed even
+  if there are no nodes that meet its requirement
+- rules can also take into account other pods and not just nodes
+  - eg no 2 pods can be on the same node
+- only takes into account when scheduling
+  - new nodes added to a cluster with a better affinity match will not trigger a pod to be redeployed
+  - if you want that, you need to manually delete that pod
+- there are 2 types of node affinity
+  - requiredDuringSchedulingIgnoredDuringExecution : hard requirement
+  - preferredDuringSchedulingIgoredDuringExecution : will try to enforce but cannot guarantee
+```
+...
+spec:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: env
+            operator: in
+            values:
+            - dev
+      preferredDuringSchedulingIgoredDuringExecution:
+      - weight: 1        # the higher the weighting the more important/points is given as a rule
+        preference:
+          matchExpressions:
+          - key: team
+            operator: in
+            values:
+            - engineering-project-1
+```
+- interpod affinity is just like node affinity but is based on current running Pods
+- works in only one namespace at a time, if no namespace is provided it'll run in the default namespace
+- 2 types
+  - requiredDuringSchedulingIgnoredDuringExecution
+  - preferredDuringSchedulingIgoredDuringExecution
+- a good reason for interpod affinity is co location of pods (having pods on the same node, rather than defining the node itself)
+- topologyKey is the settings to use. (this can get complicated)
+  - this takes in a key of a label of that node that the required/prefered matching critera matches on and finds the value
+    then it uses that value as a possible prefered matching critera for the new pod being deployed.
+- anti pod affinity is the opposite where a new schedule pod will NOT be deployed if it matches the criteria
+- operators that are supported
+  - In, NotIn
+  - Exists, DoesNotExist
+- Tolerations apply to pods
+- Taints apply to a node
+- To taint a node use command `kubectl taint nodes <NODE ID> <KEY>=<VALUE>`
+- To remove a taint on a node, use a minus char after the key  `kubectl taint nodes <NODE ID> <KEY>-`
+- Nodes that are tainted will not have pods scheduled unless the pods have been marked with a matching tolerations
+```pod/deployment
+...
+tolerations:
+- key:
+  operator: Equal
+  value: ""
+  effect: "NoSchedule"
+```
+- just like affinity etc, taints can be hard requirements or a preference (soft)
+  - this is done with effect:
+    - "NoSchedule" - hard
+    - "PreferNoSchedule" - soft
+- applying a taint to a node will not evict current running pods unless "NoExecute: evict" is used
+  - if using this you can specify how long pods can be running before its evicted
+  - use property "tolerationSeconds"
+- Typically use of taints
+  - master node (you dont want pods running on that)
+  - nodes for teams or indiviuals
+  - specialised hardware nodes
+  - nodes that have problems
+
+
 
 ### Health checks
 - used to detect and resolve problems
@@ -365,4 +447,88 @@ spec:
 - These are effectively settings/env vars that you want to share with pods.
 - Think of them as common config
 - To use them, you need to ensure that its enabled as its currently in alpha (check documentation on it)
--
+```
+apiVersion: settings.k8s.io/v1alpha1
+kind: PodPreset
+metadata:
+  name: allow-database
+spec:
+  selector:
+    matchLabels:
+      role: frontend
+  env:
+    - name: DB_PORT
+      value: "6379"
+  volumeMounts:
+    - mountPath: /cache
+      name: cache-volume
+  volumes:
+    - name: cache-volume
+      emptyDir: {}
+```
+
+
+### DaemonSets
+- Used to ensure every node in the cluster is running a defined pod
+- typically used to export metrics, show health, agent based stuff etc
+- new nodes that are added will automatically have the defined pod deployed
+- nodes that are removed will not have the pods rescheduled
+```
+apiVersion: extensions/v1beta1
+kind: DeamonSet
+metadata:
+...
+spec:
+...
+```
+
+### StatefulSets (PetSets)
+- Used to be called petsets
+- used for stateful applications where they need a stable hostname
+- podnames will be sticky, with the format <PODNAME>-<NUMBER> where the number starts at Zero
+- pod names will also be sticky in that pods that are rescheduled will have the same name
+- volumes will also be sticky with stateful sets and they will also stick around after the pod gets deleted
+- allows for ordered startups/shutdowns in that they start up from index zero and shutdown from n-1
+```
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+...
+spec:
+...
+```
+
+### Auto scaling
+- can be done on deployments, replica sets and replica controller pods
+- from k8 1.3 cpu based scalling is possible ootb
+- alpha support for custom app based metrics when restarted with ENABLE_CUSTOM_METRICS
+- monitoring tools must be installed for scalling to work e.g. heapster
+- the default time for querying the load is 30 sections, can be changed with --horizontal-pod-autoscaler-sync-period
+- the measurement of cpu usage is in millicores. 200m (millicores is 20% of cpu usage on a single core)
+```
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+spec:
+  template:
+    spec:
+      containers:
+      - name: hpa-example
+      resources:
+        requests:
+          cpu: 200m
+```
+
+```
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+spec:
+  scaleTargetRef:
+    apiVersion: extension/v1beta1
+    kind: Deployment
+    name: hpa-example
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 50
+```
