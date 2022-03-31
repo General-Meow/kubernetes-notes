@@ -1,15 +1,16 @@
-Kubernetes
+# Kubernetes
 
-common commands
+### common commands
+
 - kubectl is the main command used to communicate with a k8 cluster
 
-<resource type>                           - This can be pod, service, node, cronjob, deployments, endpoints, rc, rs
+`<resource type>`                         - This can be pod, service, node, cronjob, deployments, endpoints, rc (resource controller), rs (resource set)
 
 - kubectl cluster-info                    - get info on the cluster
 - kubectl config view                     - view kubectl config
 - kubectl get <resource type>             - list resources of a type
 - kubectl get nodes                       - lists the nodes in the cluster, name, status, roles, age, version
-- kubectl get pods -l app=v1              - get pods with label
+- kubectl get pods -l app=v1              - get pods with label key app and value v1
 - kubectl describe <resource type> <id>   - get info on resources
 
 - kubectl create -f <filename.yaml>       - create a new resource defined in the yaml file
@@ -40,14 +41,26 @@ common commands
 - kubectl scale deployment <dep_name> --replicas=4
 - kubectl scale --replicas=4 -f replicationcontroller.yaml
 - kubectl rollout
+    - kubectl rollout restart deployment <deployment id>, redeploy pods, is pull always is on, it'll get the latest image
     - kubectl rollout status <deployment id>                - get the status of a particular rollout of a deployment
     - kubectl rollout history deployment <DEPLOYMENT_NAME>
     - kubectl rollout undo deployment <DEPLOYEMTN_NAME> --to-revision=<VERSION>
 - kubectl set image <deployment id> IMAGELABEL=new image:2  - updates the image of the deployment
 
 - kubectl edit <deployment id>          - edit a running deployment settings
+- kubectl get events --sort-by=.metadata.creationTimestamp      - get events to debug
+
+### Debugging
+
+kubectl run -it --rm --restart=Never busybox --image=busybox sh   - run a pod with a command prompt
+kubectl exec <POD-NAME> -c <CONTAINER-NAME> -- <COMMAND>          - connect to an existing pod with a command prompt
+kubectl config get-contexts                                       - look at the configuration of kubectl and see what your current context is
+kubectl get secret                                                - list all secrets in the default namespace
+kubectl get secret <SECRET NAME>  -o yaml                         - list out all the stored key value pairs in the secret
+echo '<ENCODED VALUE>' | base64 --decode                          - decord the encoded value from the secret
 
 ### minikube
+
 - minikube dashboard              - start the dashboard
 - minikube status                 - get the status of the cluster and kubectl
 - minikube ip                     - get the ip of the cluster
@@ -55,7 +68,54 @@ common commands
 - minikube service <name> --url   - get the url of a service
 - minikube ssh                    - open a ssh connection to the cluster
 
+### Cluster setup
+
+on master as root:
+kubeadm init
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+then on master as normal user:
+deploy the network pod: https://kubernetes.io/docs/concepts/cluster-administration/addons/
+kubectl apply -f [podnetwork].yaml e.g. kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
+
+on slave:
+swapoff -a
+kubeadm join 192.168.1.85:6443 --token a52hlv.s47svvp70d6p7y5q \
+--discovery-token-ca-cert-hash sha256:92c9888ecdbc7b0815459e1aae4d4645d53227a1f8ada2c736b0ee3f3c3c6c30
+
+### Helm
+
+- https://artifacthub.io/         - is the public repo
+- helm init                       - install helm (Tiller) onto a cluster
+- helm reset                      - remove helm (Tiller) from a cluster
+- helm create <CHART NAME>        - create a new helm chart
+- helm install <NAME> <URL>       - install a helm chart onto the cluster from the URL and give it a local name
+- helm search hub <PACKAGE NAME> -o json - search for a helm package in the standard repo called hub, use the url to navigate to and get install instructions from there
+- helm search <REPO> <PACKAGE NAME>  - search for a helm package in the provided repo
+- helm list                       - list install helm charts
+- helm delete <PACKAGE NAME>
+- helm history                    - get history of releases, could be used for rollbacks
+- helm upgrade/rollback
+  - helm upgrade --set image.tag=<VERSION> <RELEASE/CHART DEPLOYMENT NAME> <CHART_DIR>
+  - helm upgrade --set image.tag=0.0.3 bumpty_fly .
+  - helm rollback <DEPLOYMENT NAME> <HISTORY VERSION>
+  - helm rollback bumpty_fly 1
+- helm dependency update          - uses the requirements.yaml in the root directory to automatically download dependencies
+- helm package <CHART>            - package and version the chart
+- helm ... push ....
+- helm repo list                  - lists the installed helm repos
+- helm repo add/remove <NAME> <URL>  - add or remove a repo
+- helm repo update                - update the cached repo info
+-
+
+### Helmfile
+
+- helmfile
+
 ### Replication controller vs Replica sets vs Deployments
+
 - All 3 of these give you the ability to replicate the same pod many times, this gives you scalability, load balancing, reliability (and auto healing)
 - The replication controller is the original form of replication which was then replaced with replica sets
 - Just like Replication controllers, Replica sets give the same features but also allow you to select/filter pods/images using logic/expressions e.g. !=, in [x, x, x]
@@ -63,10 +123,10 @@ common commands
 to be the backend to deployments
 - Deployments replace Replication Controllers, they use replica sets and also has the rollout and roll back features, pause resume rollout (only have a percentage of updated pods)
 - the resource type is rc/rs/deployment
-
 - Deployments can contain replica sets, replica sets can contain many pods
 
 ### Deployments
+
 - kubernetes deployment configuration is used to define how to deploy (create/update) applications on a cluster
 - k8 deployment controllers monitors the apps (instances) that have been deployed
   - if a node hosting that instance dies, the deployment controller replaces it (self healing)
@@ -76,11 +136,12 @@ to be the backend to deployments
 - the kubectl run command creates a new deployment, you need to provide it with a name and image location, port can be added too
   - you will have to give the full url of the image if its hosted on dockerhub
   - kubectl run kubernetes-bootcamp --image=gcr.io/google-samples/kubernetes-bootcamp:v1 --port=8080
-  - run will do a nubmer of things, find a suitable node to deploy the app to, schedule the deployment on the node, config the cluster to deploy when needed
-- kubectl get deployments: shows all the deployed apps
+  - run will do a number of things, find a suitable node to deploy the app to, schedule the deployment on the node, config the cluster to deploy when needed
+- `kubectl get deployments`: shows all the deployed apps
 
 ### Pods
-- pods run on a private network and therefore cannot be view from the outside
+
+- pods run on a private network and therefore cannot be viewed from the outside
 - pods can see other pods
 - you have to use kubectl to route traffic from the outside to the pods
 - use kubectl proxy to create the proxy that will allow to communicate via it network wide
@@ -100,39 +161,46 @@ to be the backend to deployments
   - container runtime to run the containers
 
 ### Rollbacks
+
 - If you do rolling deployments, you can record them and then rollback if you find any issues
-- To apply a rolling deployment, use the command: kubectl apply -f <FILENAME.YAML> --record
-- kubectl rollout history deployment <DEPLOYMENT_NAME>
+- To apply a rolling deployment, use the command: `kubectl apply -f <FILENAME.YAML> --record`
+- `kubectl rollout history deployment <DEPLOYMENT_NAME>` returns the history of a rollout deployment for a certain deployment
+
 ```
 deployments "sa-frontend"
 REVISION  CHANGE-CAUSE
-1         <none>         
+1         <none>
 2         kubectl.exe apply --filename=sa-frontend-deployment-green.yaml --record=true
 ```
-- kubectl rollout undo deployment sa-frontend --to-revision=1
+
+- `kubectl rollout undo deployment sa-frontend --to-revision=1` reverts to a recorded deployment, in this case its to revision 1
 
 ### Services
+
 - A Service is a grouping of a set of Pods with a policy of accessing them
   - defined using YAML or JSON
   - the set of Pods targeted using a LabelSelector
-  - Allows Pods to receive traffic
+  - Allows Pods to receive traffic (from outside the cluster?)
   - Can be exposed in different ways by using the type option in ServiceSpec
     - ClusterIP: internal ip to the service
     - NodePort: exposes the Pods by using the same IP and Ports for each Pod using NAT, exposes a service on each node with the port
     - LoadBalancer: external loadbalance with ext ip
     - ExternalName: gives a name to the service using a CNAME
 - Services can be used with selectors, this will mean no endpoints will be created so you'll need to manually create them
-- Services are created using the kubectl expose command
+- Services are created using the `kubectl expose` command
 - Service ports can only run on ports between 30000 - 32767
 
+```
 $ kubectl get svc
 NAME          TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)        AGE
 kubernetes    ClusterIP   10.96.0.1      <none>        443/TCP        1d
 web-service   NodePort    10.110.47.84   <none>        80:31074/TCP   12s
+```
 
 services forward traffic from one port to another. in the case above traffic that hits the port 31074 on that node will be forwarded to port 80 on the defined ClusterIP
 
 ### Volumes
+
 - volumes are the ways in which k8s saves state for pods/container - as they are mostly ephemeral
 - there are many types of volumes, each will have a different effect on its properties
 - emptyDir: essentially a volume for one pod. when the pod dies, the volume gets deleted
@@ -144,12 +212,13 @@ services forward traffic from one port to another. in the case above traffic tha
   secret: used to pass sensitive information to a pod
   persistentVolumeClaim
 - because volumes can be complex and because there are many types, k8s has the PersistentVolume(PV) subsystem.
-- to manage it, we use the PersistentVolume API and the persistentVolumeClaim api to consume it
+- We use the PersistentVolume API to manage it (create/delete) and the persistentVolumeClaim api to consume it
 - a claim is essentially a request for some storage, once received, the claim is attached to the PV
 - the PV then can be used with a pod
 - To enable PV on AWS, you first need to provision an EBS (Elastic block store)
   - `aws ec2 create-volume --size 10 --region us-east-1 --availability-zone us-east-1a --volume-type gp2`
   - this will return json with meta data. The VolumeID field is what your interested in
+
 ```POD example
 apiVersion: ..
 type: pod
@@ -157,7 +226,7 @@ type: pod
 spec:
   containers:
   - name: ...
-    volumenMounts:
+    volumeMounts:
     - mountPath: /myLocalDirMountPath
       name: myVolume
   volumes:
@@ -165,9 +234,11 @@ spec:
       awsElasticBlockStore
         volumeId: <THE VOLUME ID FROM THE PROVISIONING>
 ```
+
 - The provisioning of the EBS can be done automatically with k8 plugins
-- The AWS plugin allows you to create the volume and make it available by using a new kind called 'StorageClass'
+- The AWS plugin allows you to create the volume and make it available by using a new kind called `StorageClass`
 - Example of an auto provisioned store
+
 ```
 apiVersion:
 kind: StorageClass
@@ -178,12 +249,14 @@ parameters:
   type: gp2
   zone: us-east-1
 ```
+
 - You can then use the created objects to create Claims
 - Example of a claim on the StorageClass
+
 ```
 apiVersion: v1
 kind: persistentVolumeClaim
-metedata:
+metadata:
   name: myClaim
   annotations:
     volume.beta.kubernetes.io/storage-class: "standard"     #this is the metadata name from the StorageClass above
@@ -194,7 +267,9 @@ spec:
     requests:
       storageL 8Gi
 ```
+
 - Then a pod using the claim
+
 ```
 spec:
   containers:
@@ -208,6 +283,7 @@ spec:
 ```
 
 ### ConfigMaps & secrets
+
 - these are configuration key value pairs that can be used by pods, best used for properties that are not confidential
 - config maps can be used in env vars, container command line args and volumes
 - the configs can be created using literals or full files like app config files eg apache.conf
@@ -218,6 +294,7 @@ spec:
     app.name=my service discovery app
 - `kubectl create configmap <NAME OF CONFIG MAP> --from-file=<FILENAME.properties>`
 - usage in a POD spec using volume mount
+
 ```
 spec:
   containers:
@@ -231,7 +308,9 @@ spec:
       configMap:
         name: <NAME OF CONFIG MAP>
 ```
+
 - usage as text in a pod
+
 ```
 spec:
   containers:
@@ -244,11 +323,13 @@ spec:
         name: <NAME OF CONFIG MAP>
         key: <NAME OF KEY>
 ```
+
 - secrets are used to store configs that are sensitive.
-- kubectl create secret generic my-secrete --from-literal=password=mypassword <- creates a secrete called my-secrete with the key password and value mypassword
+- `kubectl create secret generic my-secret --from-literal=password=mypassword` : creates a secrete called my-secret with the key password and value mypassword
 - to use a secret in a pod, you simply have to mount it as a volume
 
 ### Labels
+
 - key value pairs that can be applied to objects and nodes
 - you can apply multiple and can be duplicated
 - used with expressions to get services to apply to specific pods
@@ -532,3 +613,72 @@ spec:
   maxReplicas: 10
   targetCPUUtilizationPercentage: 50
 ```
+
+
+### Helm
+- Much like how applications on ubuntu (apt) - its the package manager for applications on k8s
+- It's the recommended why to install your own applications on k8
+- To use helm, it needs to be installed, if you have RBAC installed, a service (user) account needs to be created first
+  - installing helm will also install Tiller
+- A helm chart is the packing structure for a helm managed application
+  - it contains a group of files that describes a number of k8 resources (services, deployments etc)
+  - it can also contain dependencies - other applications that the chart depends on
+  - it contains templates for easy replacement of values
+- To create a helm chart, simply use the command `helm create <NAME>`
+  - this will create a directory of that name
+  - a Chart.yml and values.yaml file
+  - also a templates directory with service.yaml and deployment.yaml
+  - charts directory containing any charts of your own charts dependencies
+
+```
+myChart /
+  Chart.yaml    // information about this chanrt
+  values.yaml   // the default values (config) for this chart
+  charts/       // folder containing this charts dependencies
+  templates/    // for the templates that the values file will populate
+```
+
+- To install this template you would run `helm install myChart`
+- the `values.yaml` file is the default values file thats used to populate the template file. If you don't specify a values file in the `install` command it will use this file
+- If you want to override some values for example the dev env, you write your own `values-dev.yaml` file, define the properties you want to override and run install with the `--values=values-dev.yaml` this is apply the default file the apply your overrides
+- `helm install --values=values.yaml myChart`
+- If you ever want to just override without another values file, you can use the `--set` flag e.g. `helm install --set port=8081 myChart`
+- dependencies are defined in the requirements.yaml file in the root directory
+```requirements.yaml
+dependencies:
+- name: mariadb
+  version: 4.x.x
+  repository: https://kubernetes-charts.storage.googleapis.com
+  condition: mariadb.enabled
+  tags:
+    - node-app-database
+```
+
+- You can also do release management with helm, in Helm 2, you'd have Tiller installed in the k8s cluster, in this mode, the helm cli will send the helm chart files to tiller to install (tiller also stores the chart files)
+- You can then do `helm install myChart` then `helm upgrade myChart` and it will send the new version of the chart to tiller and will install it (keeping both)
+- `helm rollback myChart` will rollback to the last version
+- Tiller however has too much permissions by creating, updating removing things so its a security issue
+- So now Tiller has been removed from Helm 3 and therefore has no more release management
+
+### Helmfile
+- Helmfile just like Helm uses templating but with `Go Templaates` this gives additional functions within your templates
+- Go templates have an extension `xxx.yaml.gotmpl`
+- You can use environment variables in most properties in the file e.g. `name`, `namespace`, `value`, `values` and `url` can contain templates
+- e.g.
+
+```yaml
+repositories:
+  - name: blah repo
+-   url: https://{{ requiredENV "TOKEN" }}}
+```
+
+- or
+
+```yaml
+releases:
+  - name: {{ requiredEnv "ENV" }}-values.yaml
+```
+
+- The main configuration file is called `helmfile.yaml`
+- It should contain the `release` root property with `name`, `namespace` and `chart` with optional `set` `name` `value`
+- You may need the `repository` root node too with `name` and `url` child nodes
