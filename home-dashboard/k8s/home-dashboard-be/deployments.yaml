@@ -1,17 +1,26 @@
-apiVersion: v1
-kind: Pod
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: home-dashboard-be-pod
+  name: home-dashboard-be-deployment
 spec:
-  containers:
-    - name: home-dashboard-be
-      image: generalmeow/home-dashboard
-      imagePullPolicy: Always
-      env:
-        - name: blah
-          value: blah-value
-        - name: another-blah
-          value: another-blah-value
-      ports:
-        - containerPort: 3001
-          name: http-port
+  replicas: 3
+  selector:
+    matchLabels:
+      app: home-dashboard-be
+  template:
+    metadata:
+      labels:
+        app: home-dashboard-be
+    spec:
+      containers:
+        - name: home-dashboard-be
+          image: generalmeow/home-dashboard
+          imagePullPolicy: Always
+          env:
+            - name: blah
+              value: blah-value
+            - name: another-blah
+              value: another-blah-value
+          ports:
+            - containerPort: 3001
+              name: http-port
