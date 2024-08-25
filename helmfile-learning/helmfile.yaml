@@ -1,0 +1,47 @@
+repositories:
+  - name: stable
+    url: https://charts.helm.sh/stable
+  - name: localstack-charts
+    url: https://localstack.github.io/helm-charts  # You can get the url from the page you get back from `helm search hub localstack`
+  - name: confluentinc
+    url: https://packages.confluent.io/helm
+  - name: confluentinc-charts
+    url: https://confluentinc.github.io/cp-helm-charts
+  - name: ingress-nginx
+    url: https://kubernetes.github.io/ingress-nginx
+
+environments:
+  local:
+
+releases:
+  - name: my-localstack-release
+    namespace: local
+    chart: localstack-charts/localstack
+    installed: false
+    values:
+      -
+
+  - name: confluent-operator
+    namespace: local
+    chart: confluentinc/confluent-for-kubernetes
+    installed: false
+
+  - name: confluent-plaform
+    namespace: local
+    chart: confluentinc-charts/cp-helm-charts
+    installed: false
+    version: 0.6.0 #to make it work with helm 3
+    values:
+      - ./confluent-platform/values.yaml
+    set:
+      - name: cp-kafka-rest.enabled
+        value: false
+      - name: cp-ksql-server.enabled
+        value: false
+
+  - name: nginx-controller
+    chart: ingress-nginx/ingress-nginx
+    installed: false
+    namespace: local
+    values:
+      - ./ingress/values.yaml

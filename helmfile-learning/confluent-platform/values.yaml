@@ -1,0 +1,9 @@
+#cp-zookeeper:
+#  servers: 1
+#
+#cp-kafka:
+#  brokers: 1
+#
+#cp-control-center:
+#  configurationOverrides:
+#    "replication.factor": "1"

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: home-dashboard-be-pod
+spec:
+  containers:
+    - name: home-dashboard-be
+      image: generalmeow/home-dashboard
+      imagePullPolicy: Always
+      ports:
+        - containerPort: 3001
+          name: httpPort

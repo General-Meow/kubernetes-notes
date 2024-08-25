@@ -1,0 +1,10 @@
+# Service will be available at 127.0.0.1:<port>
+tcp:
+  # port: "namespace/service:port"
+  8084: "local/kafka-cp-schema-registry:8084"
+  9021: "local/confluent-plaform-cp-control-center:9021"
+  9092: "confluent-plaform-cp-kafka:9092"
+  8083: "confluent-plaform-cp-kafka-connect:8083"
+  8081: "confluent-plaform-cp-schema-registry:8081"
+  2181: "confluent-plaform-cp-zookeeper:2181"
+  2888: "confluent-plaform-cp-zookeeper-headless:2888"

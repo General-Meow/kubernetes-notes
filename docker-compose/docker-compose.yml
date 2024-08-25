@@ -1,0 +1,33 @@
+version: '3.7'
+
+services:
+  localstack:
+    image: localstack/localstack:0.11.6
+    environment:
+      - SERVICES=dynamodb,dynamodbstreams,kinesis,s3,iam,lambda,cloudwatch
+#      - SERVICES=dynamodb
+      - DEFAULT_REGION=us-east-1
+      - LAMBDA_EXECUTOR=docker
+#      - LAMBDA_EXECUTOR=docker-reuse
+#      - LAMBDA_STAY_OPEN_MODE=0
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    ports:
+      - "4566:4566"
+      - "9001:9001"
+    volumes:
+      - ".:/usr/src/app/project"
+      - "./localstack:/tmp/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+#  kafka-cluster:
+#    image: landoop/fast-data-dev
+#    environment:
+#      ADV_HOST: 192.168.1.105
+#      RUNTESTS: 0
+#      FORWARDLOGS: 0
+#      SAMPLEDATA: 0
+#    ports:
+#      - 2182:2182 #zookeeper
+#      - 3030:3030 # landoop ui
+#      - 8081-8083:8081-8083 #rest proxy, schema registry, kafkaconnect
+#      - 9581-9585:9581-9585 #jmx ports
+#      - 9092:9092 #kafka broker

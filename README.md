@@ -2,42 +2,44 @@
 
 ### common commands
 
+```
 - kubectl is the main command used to communicate with a k8 cluster
 
-`<resource type>`                         - This can be pod, service, node, cronjob, deployments, endpoints, rc (resource controller), rs (resource set)
+<resource type>                                 - This can be pod, service, node, cronjob, deployments, endpoints, ingress, rc (resource controller), rs (resource set)
+YAML files are the manefest files that describe the objects created in k8s
 
-- kubectl cluster-info                    - get info on the cluster
-- kubectl config view                     - view kubectl config
-- kubectl get <resource type>             - list resources of a type
-- kubectl get nodes                       - lists the nodes in the cluster, name, status, roles, age, version
-- kubectl get pods -l app=v1              - get pods with label key app and value v1
-- kubectl describe <resource type> <id>   - get info on resources
+- kubectl cluster-info                          - get info on the cluster
+- kubectl config view                           - view kubectl config
+- kubectl get <resource type>                   - list resources of a type
+- kubectl get nodes                             - lists the nodes in the cluster, name, status, roles, age, version
+- kubectl get pods -l app=v1                    - get pods with label key app and value v1
+- kubectl describe <resource type> <id>         - get info on resources
 
-- kubectl create -f <filename.yaml>       - create a new resource defined in the yaml file
-- kubectl apply -f <FILENAME.YAML> --record    - create/update the current pod/deployment/service
-- kubectl expose <resource type> <id> --port=<PORT> --name=<NAME>   - creates a service for the resource via port specified
-- kubectl expose <type/name>              - creates a service to group pods and expose them
+- kubectl create -f <filename.yaml>             - create a new resource defined in the yaml manifest file
+- kubectl apply -f <FILENAME.YAML> --record     - create/update the current pod/deployment/service
+- kubectl expose <resource type> <id> --port=<PORT> --name=<NAME>     - creates a service for the resource via port specified
+- kubectl expose <type/name>                    - creates a service to group pods and expose them
 - kubectl expose <resource type> <id> --type="NodePort" --port 8080   - expose the resource using nodeport on specified port
 
-- kubectl port-forward <pod> <PORT>       - expose the application on localhosts ip, e.g. forward local requests on that ip
+- kubectl port-forward <pod> <PORT>             - expose the application on localhosts ip, e.g. forward local requests on that ip
 - kubectl port-forward sa-frontend-pod 88:80    - creates a port forward proxy from local port 88 to 80 - used for debugging only - proper way is to create a service
-- kubectl proxy                           - create a proxy so that we can access the pods    
+- kubectl proxy                                 - create a proxy so that we can access the pods    
 
-- kubectl delete <resource type> <id>     - delete a resource
+- kubectl delete <resource type> <id>           - delete a resource
     - kubectl delete pod <pod_name>
     - kubectl delete deployments <deployment_name>
     - kubectl delete
     - kubectl delete service -l run=<service_name>      - delete the service
 
-- kubectl logs                            - print the logs from a container
-                                          - kubectl logs <pod name> <container name> - container name isn't required id=f there is only one container in a pod
-- kubectl attach <pod name> -i            - attach to a pod as if you have ssh access
+- kubectl logs                                  - print the logs from a container
+                                                - kubectl logs <pod name> <container name> - container name isn't required id=f there is only one container in a pod
+- kubectl attach <pod name> -i                  - attach to a pod as if you have ssh access
 - kubectl run -i -tty busybox --image=busybox --restart=Never --sh      - Create a new pod with the busy box image and log into it. you will then have access to all pods within the cluster - useful for debugging
-- kubectl exec <pod id> <COMMAND>         - run a command on a container in a Pod
-                                          - e.g. kubectl exec <pod name> <command>
-                                          - e.g. kubectl exec <pod name> bash - start a bash shell in the pod container
+- kubectl exec <pod id> <COMMAND>               - run a command on a container in a Pod
+                                                - e.g. kubectl exec <pod name> <command>
+                                                - e.g. kubectl exec <pod name> bash - start a bash shell in the pod container
 - kubectl version - get the version of the client as well as the server
-- kubectl label pod <pod_name> key=value  - add a key value label to a pod
+- kubectl label pod <pod_name> key=value        - add a key value label to a pod
 - kubectl scale deployment <dep_name> --replicas=4
 - kubectl scale --replicas=4 -f replicationcontroller.yaml
 - kubectl rollout
@@ -47,34 +49,41 @@
     - kubectl rollout undo deployment <DEPLOYEMTN_NAME> --to-revision=<VERSION>
 - kubectl set image <deployment id> IMAGELABEL=new image:2  - updates the image of the deployment
 
-- kubectl edit <deployment id>          - edit a running deployment settings
+- kubectl edit <deployment id>                - edit a running deployment settings
 - kubectl get events --sort-by=.metadata.creationTimestamp      - get events to debug
+```
 
 ### Debugging
 
-kubectl run -it --rm --restart=Never busybox --image=busybox sh   - run a pod with a command prompt
-kubectl exec <POD-NAME> -c <CONTAINER-NAME> -- <COMMAND>          - connect to an existing pod with a command prompt
-kubectl config get-contexts                                       - look at the configuration of kubectl and see what your current context is
-kubectl get secret                                                - list all secrets in the default namespace
-kubectl get secret <SECRET NAME>  -o yaml                         - list out all the stored key value pairs in the secret
-echo '<ENCODED VALUE>' | base64 --decode                          - decord the encoded value from the secret
-
+```
+- kubectl run -it --rm --restart=Never busybox --image=busybox sh   - run a pod with a command prompt
+- kubectl exec <POD-NAME> -c <CONTAINER-NAME> -- <COMMAND>          - connect to an existing pod with a command prompt
+- kubectl config get-contexts                                       - look at the configuration of kubectl and see what your current context is
+- kubectl get secret                                                - list all secrets in the default namespace
+- kubectl get secret <SECRET NAME>  -o yaml                         - list out all the stored key value pairs in the secret
+- echo '<ENCODED VALUE>' | base64 --decode                          - decord the encoded value from the secret
+```
 ### minikube
 
+```
 - minikube dashboard              - start the dashboard
 - minikube status                 - get the status of the cluster and kubectl
 - minikube ip                     - get the ip of the cluster
 - minikube service <name>         - open the service app in the browser
 - minikube service <name> --url   - get the url of a service
 - minikube ssh                    - open a ssh connection to the cluster
+```
 
 ### Cluster setup
 
 on master as root:
+
+```
 kubeadm init
 mkdir -p $HOME/.kube
 sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 sudo chown $(id -u):$(id -g) $HOME/.kube/config
+```
 
 then on master as normal user:
 deploy the network pod: https://kubernetes.io/docs/concepts/cluster-administration/addons/
@@ -87,29 +96,30 @@ kubeadm join 192.168.1.85:6443 --token a52hlv.s47svvp70d6p7y5q \
 
 ### Helm
 
-- https://artifacthub.io/         - is the public repo
-- helm init                       - install helm (Tiller) onto a cluster
-- helm reset                      - remove helm (Tiller) from a cluster
-- helm create <CHART NAME>        - create a new helm chart
-- helm install <NAME> <URL>       - install a helm chart onto the cluster from the URL and give it a local name
-- helm search hub <PACKAGE NAME> -o json - search for a helm package in the standard repo called hub, use the url to navigate to and get install instructions from there
-- helm search <REPO> <PACKAGE NAME>  - search for a helm package in the provided repo
-- helm list                       - list install helm charts
+```
+- https://artifacthub.io/                 - is the public repo
+- helm init                               - install helm (Tiller) onto a cluster (k3s/k3d comes with helm installed ootb) 
+- helm reset                              - remove helm (Tiller) from a cluster
+- helm create <CHART NAME>                - create a new helm chart
+- helm install <NAME> <URL>               - install a helm chart onto the cluster from the URL and give it a local name
+- helm search hub <PACKAGE NAME> -o json  - search for a helm package in the standard repo called hub, use the url to navigate to and get install instructions from there
+- helm search <REPO> <PACKAGE NAME>       - search for a helm package in the provided repo
+- helm list                               - list installed helm charts
 - helm delete <PACKAGE NAME>
-- helm history                    - get history of releases, could be used for rollbacks
+- helm history                            - get history of releases, could be used for rollbacks
 - helm upgrade/rollback
   - helm upgrade --set image.tag=<VERSION> <RELEASE/CHART DEPLOYMENT NAME> <CHART_DIR>
   - helm upgrade --set image.tag=0.0.3 bumpty_fly .
   - helm rollback <DEPLOYMENT NAME> <HISTORY VERSION>
   - helm rollback bumpty_fly 1
-- helm dependency update          - uses the requirements.yaml in the root directory to automatically download dependencies
-- helm package <CHART>            - package and version the chart
+- helm dependency update                  - uses the requirements.yaml in the root directory to automatically download dependencies
+- helm package <CHART>                    - package and version the chart
 - helm ... push ....
-- helm repo list                  - lists the installed helm repos
-- helm repo add/remove <NAME> <URL>  - add or remove a repo
-- helm repo update                - update the cached repo info
+- helm repo list                          - lists the installed helm repos
+- helm repo add/remove <NAME> <URL>       - add or remove a repo
+- helm repo update                        - update the cached repo info
 -
-
+```
 ### Helmfile
 
 - helmfile
@@ -181,14 +191,30 @@ REVISION  CHANGE-CAUSE
   - defined using YAML or JSON
   - the set of Pods targeted using a LabelSelector
   - Allows Pods to receive traffic (from outside the cluster?)
-  - Can be exposed in different ways by using the type option in ServiceSpec
-    - ClusterIP: internal ip to the service
+  - Can be exposed in different ways by using the `type` property in the spec section
+    - ClusterIP: internal ip to the service, with a specified port. The default if not specified
     - NodePort: exposes the Pods by using the same IP and Ports for each Pod using NAT, exposes a service on each node with the port
     - LoadBalancer: external loadbalance with ext ip
     - ExternalName: gives a name to the service using a CNAME
+  - Usually `ClusterIP` is used in combination with an `Ingress` and a `loadbalancer` to expose the service
 - Services can be used with selectors, this will mean no endpoints will be created so you'll need to manually create them
 - Services are created using the `kubectl expose` command
 - Service ports can only run on ports between 30000 - 32767
+
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: MyApp
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 9376
+```
 
 ```
 $ kubectl get svc
@@ -448,7 +474,7 @@ tolerations:
 - All service Object names will be reconised by the DNS Pod so you can refer to each service in each deployments env variable
 
 ### Ingress
-- Used to allow inbound http requests in
+- Used to allow inbound http requests into the private clustered network
 - alternative to the cloud providers load balancer/nodePort features
 - used to easily expose pods and services
 - There are ingress controllers which are like loadbalancers within k8
