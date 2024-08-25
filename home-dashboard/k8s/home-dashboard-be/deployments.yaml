@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: home-dashboard-be-deployment
+  name: home-dashboard-be
 spec:
   replicas: 3
   selector:
@@ -22,5 +22,5 @@ spec:
             - name: another-blah
               value: another-blah-value
           ports:
-            - containerPort: 3001
+            - containerPort: 3000
               name: http-port
