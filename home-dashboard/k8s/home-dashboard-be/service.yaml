@@ -4,5 +4,9 @@ metadata:
   name: home-dashboard-be-service
 spec:
   type: ClusterIP
+  selector:
+    app: home-dashboard-be
   ports:
     - port: 3001
+      protocol: TCP
+      targetPort: 3001
