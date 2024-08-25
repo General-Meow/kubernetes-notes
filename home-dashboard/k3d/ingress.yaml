@@ -1,16 +1,41 @@
+---
+# k3d comes with traefik v2 which uses middleware
+# Middleware
+# Strip prefix /overview
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: mw-home-dashboard-be
+  namespace: default
+spec:
+  stripPrefix:
+    forceSlash: false
+    prefixes:
+      - /home-dashboard/service
+---
 # apiVersion: networking.k8s.io/v1beta1 # for k3s < v1.19
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: nginx
+  name: home-dashboard
+  namespace: default
   annotations:
+    #    kubernetes.io/ingress.class: traefik  deprecated, use spec.ingressClassName
+    #    traefik.ingress.kubernetes.io/rule-type: PathPrefixStrip
+    traefik.ingress.kubernetes.io/router.middlewares: default-mw-home-dashboard-be@kubernetescrd #<namespace>-<middleware-name>@kubernetescrd
     ingress.kubernetes.io/ssl-redirect: "false"
-    nginx.ingress.kubernetes.io/use-regex: "true"
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
 spec:
+  ingressClassName: traefik
   rules:
     - http:
         paths:
+          - path: /home-dashboard/service
+            pathType: Prefix
+            backend:
+              service:
+                name: home-dashboard-be
+                port:
+                  number:  3000
           - path: /
             pathType: Prefix
             backend:
@@ -18,10 +43,3 @@ spec:
                 name: nginx
                 port:
                   number: 80
-          - path: /home-dashboard(/|$)(.*)
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: home-dashboard-be
-                port:
-                  number: 3000
