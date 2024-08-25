@@ -1,1 +1,8 @@
 docker-compose/localstack/**
+EKS/**
+terraform/.terraform/**
+terraform/.terraform.lock.hcl
+terraform/my_lambda_package.zip
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+.idea/**

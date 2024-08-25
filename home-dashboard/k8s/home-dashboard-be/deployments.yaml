@@ -9,4 +9,4 @@ spec:
       imagePullPolicy: Always
       ports:
         - containerPort: 3001
-          name: httpPort
+          name: http-port
