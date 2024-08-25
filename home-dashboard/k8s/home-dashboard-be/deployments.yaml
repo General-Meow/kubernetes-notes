@@ -7,6 +7,11 @@ spec:
     - name: home-dashboard-be
       image: generalmeow/home-dashboard
       imagePullPolicy: Always
+      env:
+        - name: blah
+          value: blah-value
+        - name: another-blah
+          value: another-blah-value
       ports:
         - containerPort: 3001
           name: http-port
