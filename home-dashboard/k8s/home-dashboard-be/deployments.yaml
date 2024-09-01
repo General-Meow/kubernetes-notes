@@ -21,6 +21,12 @@ spec:
               value: blah-value
             - name: another-blah
               value: another-blah-value
+            - name: OCTOPUS_API_KEY
+              value: xxx
+            - name: TFL_API_KEY
+              value: xxx
+            - name: OCTOPUS_ACCOUNT_NUMBER
+              value: xxx
           ports:
             - containerPort: 3000
               name: http-port

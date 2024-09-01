@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: home-dashboard-fe
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: home-dashboard-fe
+  template:
+    metadata:
+      labels:
+        app: home-dashboard-fe
+    spec:
+      containers:
+        - name: home-dashboard-fe
+          image: generalmeow/home-dashboard-fe
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+              name: http-port

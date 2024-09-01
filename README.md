@@ -74,6 +74,15 @@ YAML files are the manefest files that describe the objects created in k8s
 - minikube ssh                    - open a ssh connection to the cluster
 ```
 
+### k3d/k3s
+
+```
+- k3d is a repackaged wrapper version of k3s to allow it to run in docker, so you can get a whole cluster on one machine
+- k3s is rancher's distribution of k8s which is lightweight
+- `k3d cluster create --api-port 6550 -p "8081:80@loadbalancer" --agents 2` - this will create a control plane container and 2 worker containers with a loadbalancer accepting requests on 8081 which routes it to the cluster at port 80 https://k3d.io/v5.7.3/usage/exposing_services/
+- once a cluster is created, the kubectl config is updated to point to it. You can confirm with `k config get-clusters` and `k config current-context`
+```
+
 ### Cluster setup
 
 on master as root:
