@@ -1,0 +1,30 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: mw-nginx-example-with-custom-values
+  namespace: default
+spec:
+  stripPrefix:
+    forceSlash: false
+    prefixes:
+      - /custom
+---
+# apiVersion: networking.k8s.io/v1beta1 # for k3s < v1.19
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nginx-custom
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: default-mw-nginx-example-with-custom-values@kubernetescrd #<namespace>-<middleware-name>@kubernetescrd
+    ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /custom
+            pathType: Prefix
+            backend:
+              service:
+                name: nginx-example-with-custom-values
+                port:
+                  number: 8888

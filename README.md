@@ -34,7 +34,10 @@ YAML files are the manefest files that describe the objects created in k8s
 - kubectl logs                                  - print the logs from a container
                                                 - kubectl logs <pod name> <container name> - container name isn't required id=f there is only one container in a pod
 - kubectl attach <pod name> -i                  - attach to a pod as if you have ssh access
-- kubectl run -i -tty busybox --image=busybox --restart=Never --sh      - Create a new pod with the busy box image and log into it. you will then have access to all pods within the cluster - useful for debugging
+- kubectl exec --stdin --tty <pod name> -- /bin/bash -- or try this one
+- kubectl run -i --tty busybox --image=busybox --restart=Never -- sh      - Create a new pod with the busy box image and log into it. you will then have access to all pods within the cluster - useful for debugging
+- kubectl run -i --tty alpine --image=alpine --restart=Never -- sh      - Create a new pod with the alpineapk image and log into it. you will then have access to all pods within the cluster - useful for debugging
+  -- install curl in alpine `apk add curl`
 - kubectl exec <pod id> <COMMAND>               - run a command on a container in a Pod
                                                 - e.g. kubectl exec <pod name> <command>
                                                 - e.g. kubectl exec <pod name> bash - start a bash shell in the pod container
@@ -76,12 +79,22 @@ YAML files are the manefest files that describe the objects created in k8s
 
 ### k3d/k3s
 
-```
 - k3d is a repackaged wrapper version of k3s to allow it to run in docker, so you can get a whole cluster on one machine
-- k3s is rancher's distribution of k8s which is lightweight
-- `k3d cluster create --api-port 6550 -p "8081:80@loadbalancer" --agents 2` - this will create a control plane container and 2 worker containers with a loadbalancer accepting requests on 8081 which routes it to the cluster at port 80 https://k3d.io/v5.7.3/usage/exposing_services/
-- once a cluster is created, the kubectl config is updated to point to it. You can confirm with `k config get-clusters` and `k config current-context`
+- k3s is rancher's distribution of k8s which is lightweight, just enough linux to run containers
+- k3d command structure is `k3d noun verb x` or `k3d noun verb --help`
+- Once a cluster is created, the kubectl config is updated to point to it. You can confirm with `k config get-clusters` and `k config current-context`
+
+#### Commands
 ```
+- `k3d cluster create <CLUSTER_NAME>` - Creates a cluster with default settings with the cluster name (one control plane and zero nodes)
+- `k3d cluster create <CLUSTER_NAME> --api-port 6550 -p "8081:80@loadbalancer" --agents 2` - this will create a control plane container and 2 worker containers with a loadbalancer accepting requests on 8081 which routes it to the cluster at port 80 https://k3d.io/v5.7.3/usage/exposing_services/
+- `k3d cluster delete <CLUSTER_NAME>  - Delete the specified cluster 
+
+```
+
+- helm create <NAME>
+  - update the image in values
+- helm install <CHART_NAME> <DIR_OF_CHART>
 
 ### Cluster setup
 
@@ -319,14 +332,37 @@ spec:
 
 ### ConfigMaps & secrets
 
-- these are configuration key value pairs that can be used by pods, best used for properties that are not confidential
-- config maps can be used in env vars, container command line args and volumes
-- the configs can be created using literals or full files like app config files eg apache.conf
-- to use them in deployment files, you use them as volumes or text from valueFrom and configMapKeyRef
-- To create a config file to be used as a config map, just create a file with key value pairs. e.g.
-  - name=paul
-    dbName=tcs
-    app.name=my service discovery app
+- To view configmaps and secrets use:
+  - `kubectl get secrets` or `kubectl get configmaps`
+  - `kubectl describe secret <name>` or `kubectl describe configmap <name>`
+  - secrets won't have the secret value ouputed when you describe them, to view them use:
+    - `kubectl get secret <name> -o jsonpath={.data}` but you'll also need to decode them
+    - `kubectl get secret <name> -o jsonpath={.data.<key>} | base64 -d`
+- These are configuration key value pairs that can be used by pods, best used for properties that are not confidential
+- Configmaps can be used as env vars, container command line args and volumes
+- The configs properties can be created using literals or full files like app config files eg apache.conf
+- To use them in deployment files, you use them as volumes or text using properties such as `valueFrom` and `configMapKeyRef`
+- To create a Configmap file to be used as a configmap, just create a file with key value pairs. e.g.
+```
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: game-demo
+data:
+  # property-like keys; each key maps to a simple value
+  player_initial_lives: "3"
+  ui_properties_file_name: "user-interface.properties"
+
+  # file-like keys
+  game.properties: |
+    enemy.types=aliens,monsters
+    player.maximum-lives=5    
+  user-interface.properties: |
+    color.good=purple
+    color.bad=yellow
+    allow.textmode=true    
+```
+
 - `kubectl create configmap <NAME OF CONFIG MAP> --from-file=<FILENAME.properties>`
 - usage in a POD spec using volume mount
 
@@ -341,7 +377,7 @@ spec:
     volumes:
     - name: config-volume
       configMap:
-        name: <NAME OF CONFIG MAP>
+        name: <NAME OF CONFIG MAP> (game-demo)
 ```
 
 - usage as text in a pod
@@ -355,13 +391,38 @@ spec:
     - name: DRIVER    # name of the env var
       valueFrom:
         configMapKeyRef:
-        name: <NAME OF CONFIG MAP>
+        name: <NAME OF CONFIG MAP> (game-demo)
         key: <NAME OF KEY>
 ```
 
 - secrets are used to store configs that are sensitive.
 - `kubectl create secret generic my-secret --from-literal=password=mypassword` : creates a secrete called my-secret with the key password and value mypassword
-- to use a secret in a pod, you simply have to mount it as a volume
+- Or create them as a manifest file
+- If you want to mount the secret property as a file (volume) then you will need to use the `data` property in the manifest and base64 encode the file the copy that text, it will then be decoded and placed as a file in the volume
+  - If you don't base64v encode the value, then you wont be able to apply the manifest file
+```
+apiVersion: v1
+kind: Secret
+metadata:
+  name: dotfile-secret
+data:
+  .secret-file: dmFsdWUtMg0KDQo=     //base64 encode this value
+```
+- If you're just using the secret as text as an environment variable for example, then use 
+```
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secrets
+stringData:
+  api_key: abc-123 
+```
+
+- There are many types of secrets that must conform to a struture if you use them
+  - Opaque           - arbitrary user-defined data
+  - kubernetes.io/service-account-token  - ServiceAccount
+  - etc
+
 
 ### Labels
 
@@ -650,7 +711,7 @@ spec:
 ```
 
 
-### Helm
+### Helm / Helmcharts
 - Much like how applications on ubuntu (apt) - its the package manager for applications on k8s
 - It's the recommended why to install your own applications on k8
 - To use helm, it needs to be installed, if you have RBAC installed, a service (user) account needs to be created first
@@ -694,6 +755,12 @@ dependencies:
 - `helm rollback myChart` will rollback to the last version
 - Tiller however has too much permissions by creating, updating removing things so its a security issue
 - So now Tiller has been removed from Helm 3 and therefore has no more release management
+- Helm supports a plugin structure, so you can install plugin's such as secrets, s3, diff
+- Helm secrets (https://github.com/jkroepke/helm-secrets) is a plugin that allows you to encrypt and decrypt secrets on the fly. 
+  - It uses SOPS (https://github.com/getsops/sops) behind the scenes edit the files to use encryption
+  - SOPS can be configured to use multiple encryption methods such as KMS, age, key vault etc
+  - age (https://github.com/FiloSottile/age) is a simple file encryption tool written in Go
+- Using helm secrets with SOPS and ages will allow you to encrypt, decrypt on the fly and STORE your secrets in you git repo if you also store your private key carefully
 
 ### Helmfile
 - Helmfile just like Helm uses templating but with `Go Templaates` this gives additional functions within your templates
@@ -717,3 +784,62 @@ releases:
 - The main configuration file is called `helmfile.yaml`
 - It should contain the `release` root property with `name`, `namespace` and `chart` with optional `set` `name` `value`
 - You may need the `repository` root node too with `name` and `url` child nodes
+
+
+
+### Secrets
+- install age to allow the generation of keys 
+  - generate public and private key with `age-keygen -o age-key.txt` this will create a file with the keys in the local directory in age-key.txt
+  - move the key file into the hidden sops dir `mkdir ~/.sops`, `mv ~/.sops/age-key.txt`
+  - create an environment variable called `SOPS_AGE_KEY_FILE` and point to the age key file
+  - to encrypt a file: `sops --encrypt --age $(cat $SOPS_AGE_KEY_FILE | grep 'public key' | awk '{ print $4 }') --encrypted-regex '^(data|stringData)$' --in-place ./secret-temp.yaml`
+    - this will encrypt a file's data/stringData property using the public key from the file defined in $SOPS_AGE_KEY_FILE
+    - and replace the file
+    - a new part of the file will be added to the manifest `sops` with all the required information on what was used to encrypt the file
+  - This is what an encrypted file looks like using sops
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+    name: app-secrets
+stringData:
+    api_key: ENC[AES256_GCM,data:ecpCYeQRBMQID3Y=,iv:y5Pz/H13xayzGph2hw11nfGXgLrgmk/6GqstPf00ljk=,tag:ha5kxw3ivRB5boVjzVp8hw==,type:str]
+sops:
+    kms: []
+    gcp_kms: []
+    azure_kv: []
+    hc_vault: []
+    age:
+        - recipient: age1hrf4lynyh8dgt4qpd0fu7u8vhpspun04gpxhaaf9dfhj6c4j53vscyst67
+          enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBBR1piNjE4YkRmRkNFdHMr
+            Q2VYZVdZb2JiaU1TM1NmL2JxVEllMmNwbVE4CmFqbTFKdjkzVFFPQko1dnNkQWFH
+            Yi9DYzEzVnZyTW9GeS9SV05WOUJqd3MKLS0tIDRGSHM1S0J1OXkrZ0xKY0Y5NWRY
+            TUw4T0kzU0RUaFkvM2xRUVRaUVJrQWsKy7jw9ScvDqFRT9nlaYAckdqEwbcXO2WC
+            vEh/n/AfNaJWkgfHbq4+Jm3+qhwmTN2SJPNw7C/pyy4Bd4KHNM3ySQ==
+            -----END AGE ENCRYPTED FILE-----
+    lastmodified: "2024-12-01T22:06:02Z"
+    mac: ENC[AES256_GCM,data:qXr+SW0dU9lmXaLkRFANVnhtuCDBarvg5ge8bXkMmNyC7n8HS/+zOeirfpiFSC5wL4gsuGtR/gr/MELwpI4d1SmMmlUvq1lSURyLtFaT53t0A4yRb5xt36GpaVNmMKxMiBJultCWp8C/Bt3Jf+NsWqw7aWievcrO/ClZZq4/JZE=,iv:voyXv+sxKlKiP8goiDfHhSjHd9er83Q4w09oDGMODkE=,tag:lUEaA7GM+D4amEB2mnffFQ==,type:str]
+    pgp: []
+    encrypted_regex: ^(data|stringData)$
+    version: 3.7.1
+```
+  - to decrypt a file: `sops --decrypt --age $(cat $SOPS_AGE_KEY_FILE | grep 'public key' | awk '{ print $4 }') --encrypted-regex '^(data|stringData)$' --in-place ./secret-temp.yaml`
+  - You can apply an encrypted secret to k8s in one go by not using the --in-place option and pipe it to kubectl
+    - `sops --decrypt --age $(cat $SOPS_AGE_KEY_FILE |grep 'public key' | awk '{ print $4 }') --encrypted-regex '^(data|stringData)$' ./secret-temp.yaml \ kubectl apply -f -`
+  - If using vscode or intellij, you can install plugins that allow you to edit encrypted files as long as you provide them with the age file and sops executable
+- helm-secrets allows you to encrypt, decrypt and edit encrypted files easily, it still uses sops behind the scenes
+  - To use it, you must set it up by telling it where sops is installed with the ENVAR `HELM_SECRETS_SOPS_PATH`
+    - export SOPS_HOME=/Users/paul/Dev/Software/sops
+    - export HELM_SECRETS_SOPS_PATH=$SOPS/sops
+  - Then you must create a hidden file called `.sops.yaml` in the directory where the secrets are held configuring helm secrets to use the correct encryption method
+    - To use age as the encryption with helm secretes use the following config:
+```yaml
+creation_rules:
+  - age: age1hrf4lynyh8dgt4qpd0fu7u8vhpspun04gpxhaaf9dfhj6c4j53vscyst67
+``` 
+  - To encrypt using helm secrets
+    - `helm secrets encrypt another-secret-temp.yaml`
+    - This will encrypt the file but output to terminal
+

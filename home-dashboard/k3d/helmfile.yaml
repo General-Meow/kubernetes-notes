@@ -1,0 +1,14 @@
+repositories:
+  - name: bitnami
+    url: https://charts.bitnami.com/bitnami
+
+releases:
+  - name: nginx-example
+    namespace: default
+    chart: bitnami/nginx
+  - name: nginx-example-with-custom-values
+    namespace: default
+    chart: bitnami/nginx
+    values:
+      - nginx-custom-values/nginx-values.yaml
+

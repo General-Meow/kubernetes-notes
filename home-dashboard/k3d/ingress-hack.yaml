@@ -1,0 +1,22 @@
+# This does not work with the current k3d distro as its based on a different version of traefik, the traefik version in k3d
+# requires the usage of middleware if you wish to strip paths from the url
+# apiVersion: networking.k8s.io/v1beta1 # for k3s < v1.19
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nginx-hack
+  annotations:
+    #kubernetes.io/ingress.class: "traefik" This is now deprecated
+#    ingress.kubernetes.io/ssl-redirect: "false"
+    traefik.frontend.rule.type: PathPrefixStrip
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /custom
+            pathType: Prefix
+            backend:
+              service:
+                name: nginx-example-with-custom-values
+                port:
+                  number: 8888
